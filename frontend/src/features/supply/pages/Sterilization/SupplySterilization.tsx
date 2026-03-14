@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Archive, Plus, ShieldCheck, ShieldAlert, FileSignature } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Archive, Plus, ShieldCheck, ShieldAlert, FileSignature, Loader2, ClipboardX } from 'lucide-react';
 import { Modal } from '../../../../shared/ui/Modal';
 
 interface SterilizationLog {
@@ -10,14 +11,8 @@ interface SterilizationLog {
   cycleNumber: string;
   items: string;
   operator: string;
-  sporeTestResult: 'PASS' | 'FAIL' | 'PENDING' | 'N/A';
+  sporeTestResult: 'PASS' | 'FAIL' | 'PENDING' | 'N/A' | string;
 }
-
-const MOCK_LOGS: SterilizationLog[] = [
-  { id: 'LOG-001', date: '2026-03-12', time: '14:30', equipment: 'Autoclave A (B-Class)', cycleNumber: 'C-8201', items: '기본 기구 세트 15개, 임플란트 키트 2개', operator: '최지민', sporeTestResult: 'PASS' },
-  { id: 'LOG-002', date: '2026-03-12', time: '10:00', equipment: 'Autoclave B (S-Class)', cycleNumber: 'C-8200', items: '핸드피스 20개', operator: '최지민', sporeTestResult: 'N/A' },
-  { id: 'LOG-003', date: '2026-03-11', time: '18:00', equipment: 'EO Gas 멸균기', cycleNumber: 'E-1102', items: '플라스틱 기구, 튜브류', operator: '김수진', sporeTestResult: 'PENDING' },
-];
 
 const SporeBadge = ({ result }: { result: SterilizationLog['sporeTestResult'] }) => {
   switch (result) {
@@ -30,13 +25,37 @@ const SporeBadge = ({ result }: { result: SterilizationLog['sporeTestResult'] })
     case 'N/A':
       return <span className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-500 rounded-md text-xs font-bold w-fit">해당 없음</span>;
     default:
-      return null;
+      return <span className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 text-gray-500 rounded-md text-xs font-bold w-fit">{result}</span>;
   }
 };
 
 const SupplySterilization = () => {
+  const [logs, setLogs] = useState<SterilizationLog[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ equipment: 'Autoclave A (B-Class)', cycleType: 'Standard 121°C', items: '', operator: '' });
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const res = await axios.get('/api/supply/sterilization?hospitalId=WAYN-001');
+        const dbLogs = res.data.map((log: any) => {
+           const logDate = new Date(log.runDate);
+           return {
+             ...log,
+             date: logDate.toLocaleDateString(),
+             time: logDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+           };
+        });
+        setLogs(dbLogs);
+      } catch (err) {
+        console.error('Failed to fetch sterilization logs:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLogs();
+  }, []);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -68,32 +87,48 @@ const SupplySterilization = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {MOCK_LOGS.map((log) => (
-                <tr key={log.id} className="hover:bg-green-50/30 transition-colors group cursor-pointer">
-                  <td className="py-4 px-6">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-gray-800">{log.date}</span>
-                      <span className="text-sm text-gray-500">{log.time}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-[#1A365D] block">{log.equipment}</span>
-                      <span className="text-xs text-gray-400 mt-0.5 font-mono">Cycle: {log.cycleNumber}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 text-sm text-gray-700 font-medium">{log.items}</td>
-                  <td className="py-4 px-6 text-sm text-gray-600">{log.operator}</td>
-                  <td className="py-4 px-6">
-                    <SporeBadge result={log.sporeTestResult} />
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <button className="text-gray-400 hover:text-[#16A34A] transition hover:scale-110" title="서명 확인">
-                      <FileSignature size={20} />
-                    </button>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-gray-500">
+                    <Loader2 className="animate-spin mb-4 mx-auto" size={32} />
+                    <p>데이터를 불러오는 중입니다...</p>
                   </td>
                 </tr>
-              ))}
+              ) : logs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-gray-400">
+                    <ClipboardX size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p>등록된 멸균 및 소독 일지가 없습니다.</p>
+                  </td>
+                </tr>
+              ) : (
+                logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-green-50/30 transition-colors group cursor-pointer">
+                    <td className="py-4 px-6">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-gray-800">{log.date}</span>
+                        <span className="text-sm text-gray-500">{log.time}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-[#1A365D] block">{log.equipment}</span>
+                        <span className="text-xs text-gray-400 mt-0.5 font-mono">Cycle: {log.cycleNumber}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 text-sm text-gray-700 font-medium">{log.items}</td>
+                    <td className="py-4 px-6 text-sm text-gray-600">{log.operator}</td>
+                    <td className="py-4 px-6">
+                      <SporeBadge result={log.sporeTestResult} />
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <button className="text-gray-400 hover:text-[#16A34A] transition hover:scale-110" title="서명 확인">
+                        <FileSignature size={20} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

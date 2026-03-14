@@ -4,7 +4,7 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
@@ -51,4 +51,112 @@ model User {
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// SUPPLY DOMAIN MODELS
+// -----------------------------------------------------------------------------
+
+model Vendor {
+  id              String   @id @default(uuid())
+  hospitalId      String
+  name            String
+  category        String
+  contactPerson   String?
+  phone           String?
+  email           String?
+  rating          Int      @default(0)
+  recentOrderDate DateTime?
+  isFavorite      Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([hospitalId])
+}
+
+model Inventory {
+  id              String   @id @default(uuid())
+  hospitalId      String
+  sku             String
+  name            String
+  category        String
+  currentStock    Int      @default(0)
+  minStock        Int      @default(0)
+  unit            String
+  lastRestockDate DateTime?
+  status          String   @default("IN_STOCK") // "IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK"
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([hospitalId])
+}
+
+model Order {
+  id               String   @id @default(uuid())
+  hospitalId       String
+  orderNumber      String
+  itemName         String
+  quantity         Int
+  unit             String
+  status           String   @default("PENDING_APPROVAL") // "PENDING_APPROVAL", "ORDERED", "DELIVERED", "CANCELED"
+  requestDate      DateTime
+  requester        String
+  currentStepIndex Int      @default(0)
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([hospitalId])
+}
+
+model SterilizationLog {
+  id            String   @id @default(uuid())
+  hospitalId    String
+  date          DateTime
+  equipment     String
+  cycleCount    Int
+  operator      String
+  status        String   @default("COMPLETED") // "COMPLETED", "FAILED"
+  temperature   Float?
+  pressure      Float?
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([hospitalId])
+}
+
+model CleaningLog {
+  id            String   @id @default(uuid())
+  hospitalId    String
+  date          DateTime
+  zone          String
+  manager       String
+  status        String   @default("COMPLETED") // "PENDING", "COMPLETED"
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([hospitalId])
+}
+
+model AsRequest {
+  id            String   @id @default(uuid())
+  hospitalId    String
+  requestDate   DateTime
+  equipment     String
+  symptom       String
+  requester     String
+  status        String   @default("PENDING") // "PENDING", "IN_PROGRESS", "RESOLVED"
+  visitDate     DateTime?
+  engineer      String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([hospitalId])
 }

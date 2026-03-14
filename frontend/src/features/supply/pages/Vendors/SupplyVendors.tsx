@@ -1,4 +1,6 @@
-import { Building2, Phone, Mail, FileText, Plus, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Building2, Phone, Mail, FileText, Plus, Star, Loader2 } from 'lucide-react';
 
 interface Vendor {
   id: string;
@@ -12,14 +14,24 @@ interface Vendor {
   isFavorite: boolean;
 }
 
-const MOCK_VENDORS: Vendor[] = [
-  { id: 'VND-001', name: '오스템임플란트', category: '임플란트/재료', contactPerson: '김영업 대리', phone: '010-1234-5678', email: 'sales@osstem.mock', rating: 5, recentOrderDate: '2026-03-12', isFavorite: true },
-  { id: 'VND-002', name: '신흥', category: '장비/재료', contactPerson: '박상무 과장', phone: '010-9876-5432', email: 'sales@shinhung.mock', rating: 4, recentOrderDate: '2026-03-05', isFavorite: true },
-  { id: 'VND-003', name: '세일글로발', category: '소모품', contactPerson: '이소분 주임', phone: '051-123-4567', email: 'order@seil.mock', rating: 4, recentOrderDate: '2026-03-11', isFavorite: false },
-  { id: 'VND-004', name: '한신메디칼', category: '멸균장비', contactPerson: '최기사', phone: '02-987-6543', email: 'as@hanshin.mock', rating: 5, recentOrderDate: '2025-12-10', isFavorite: false },
-];
-
 const SupplyVendors = () => {
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVendors = async () => {
+      try {
+        const res = await axios.get('/api/supply/vendors?hospitalId=WAYN-001');
+        setVendors(res.data);
+      } catch (err) {
+        console.error('Failed to fetch vendors:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchVendors();
+  }, []);
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -34,44 +46,56 @@ const SupplyVendors = () => {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {MOCK_VENDORS.map(vendor => (
-          <div key={vendor.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-5 relative group">
-            <button className="absolute top-4 right-4 text-gray-300 hover:text-yellow-400 transition" title="즐겨찾기">
-              <Star size={20} className={vendor.isFavorite ? "fill-yellow-400 text-yellow-400" : ""} />
-            </button>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-green-50 text-[#16A34A] rounded-full flex items-center justify-center">
-                <Building2 size={24} />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-800 text-lg">{vendor.name}</h3>
-                <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{vendor.category}</span>
-              </div>
-            </div>
-            
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <UserIcon /> <span className="font-medium text-gray-800">{vendor.contactPerson}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Phone size={14} className="text-gray-400" /> {vendor.phone}
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Mail size={14} className="text-gray-400" /> <span className="truncate">{vendor.email}</span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
-              <div className="text-xs text-gray-500">
-                <span className="block font-semibold">최근 발주/문의</span>
-                {vendor.recentOrderDate}
-              </div>
-              <button className="bg-gray-50 hover:bg-[#16A34A] hover:text-white text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
-                <FileText size={14} /> 상세 이력
-              </button>
-            </div>
+        {loading ? (
+          <div className="col-span-full py-12 flex flex-col items-center justify-center text-gray-500">
+            <Loader2 className="animate-spin mb-4" size={32} />
+            <p>거래처 정보를 불러오는 중입니다...</p>
           </div>
-        ))}
+        ) : vendors.length === 0 ? (
+          <div className="col-span-full py-12 flex flex-col items-center justify-center text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">
+            <Building2 size={48} className="mb-4 text-gray-300" />
+            <p>등록된 거래처가 없습니다.</p>
+          </div>
+        ) : (
+          vendors.map(vendor => (
+            <div key={vendor.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-5 relative group">
+              <button className="absolute top-4 right-4 text-gray-300 hover:text-yellow-400 transition" title="즐겨찾기">
+                <Star size={20} className={vendor.isFavorite ? "fill-yellow-400 text-yellow-400" : ""} />
+              </button>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-green-50 text-[#16A34A] rounded-full flex items-center justify-center">
+                  <Building2 size={24} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800 text-lg">{vendor.name}</h3>
+                  <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{vendor.category}</span>
+                </div>
+              </div>
+              
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <UserIcon /> <span className="font-medium text-gray-800">{vendor.contactPerson}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Phone size={14} className="text-gray-400" /> {vendor.phone}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Mail size={14} className="text-gray-400" /> <span className="truncate">{vendor.email}</span>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                  <span className="block font-semibold">최근 발주/문의</span>
+                  {vendor.recentOrderDate}
+                </div>
+                <button className="bg-gray-50 hover:bg-[#16A34A] hover:text-white text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                  <FileText size={14} /> 상세 이력
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Search, Filter, Plus, Clock, Image as ImageIcon, Barcode, Hash, Building2, Calendar, Settings2, Package, Save, PackagePlus, Database, Download, ShoppingCart, Minus, X, ArrowRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Search, Filter, Plus, Clock, Image as ImageIcon, Barcode, Hash, Building2, Calendar, Settings2, Package, Save, PackagePlus, Database, Download, ShoppingCart, Minus, X, ArrowRight, Loader2 } from 'lucide-react';
 import { SlideOver } from '../../../../shared/ui/SlideOver';
 import { Modal } from '../../../../shared/ui/Modal';
 
@@ -55,26 +56,17 @@ interface InventoryItem {
   name: string;
   category: string;
   currentStock: number;
-  safetyStock: number;
+  minStock: number;
+  safetyStock?: number; // fallback logic
   unit: string;
   size?: string;
   price?: number;
   expirationDate?: string;
-  location: string;
-  vendor: string;
-  lastOrderDate: string;
-  notes: string;
+  location?: string;
+  vendor?: string;
+  lastOrderDate?: string;
+  notes?: string;
 }
-
-const MOCK_INVENTORY: InventoryItem[] = [
-  { id: 'ITM-001', name: '멸균 거즈 (10x10)', category: '기타용품', currentStock: 2, safetyStock: 5, unit: 'Box', size: '10x10cm', price: 15000, location: 'A-1 선반', vendor: '세일글로발', lastOrderDate: '2026-03-01', notes: '원장님 선호 제품 (부드러운 타입)' },
-  { id: 'ITM-002', name: '오스템 TSIII SA Fixture (4.0x10)', category: '재료', currentStock: 15, safetyStock: 10, unit: 'EA', size: '4.0x10', price: 120000, expirationDate: '2026-05-20', location: '임플란트 장', vendor: '오스템임플란트', lastOrderDate: '2026-02-15', notes: '재고 부족 시 즉각 발주 요망' },
-  { id: 'ITM-003', name: '3M Filtek Z350 (A2)', category: '재료', currentStock: 3, safetyStock: 3, unit: 'Syr', size: '4g', price: 45000, expirationDate: '2026-03-30', location: '냉장고', vendor: '신흥', lastOrderDate: '2026-01-20', notes: '냉장 보관 필수' },
-  { id: 'ITM-004', name: '리가슈어 (Ligasoure)', category: '기구', currentStock: 1, safetyStock: 2, unit: 'Set', size: '기본형', price: 350000, location: 'B-3 서랍', vendor: '코비디엔', lastOrderDate: '2025-11-05', notes: '수리 이력 있음' },
-  { id: 'ITM-005', name: '포터블 엑스레이 (EzRay)', category: '장비', currentStock: 2, safetyStock: 2, unit: 'EA', size: '포터블', price: 2500000, location: '진료실 1', vendor: '바텍코리아', lastOrderDate: '2025-01-10', notes: '배터리 상태 점검 필요' },
-  { id: 'ITM-006', name: 'A4 복사용지', category: '비품', currentStock: 10, safetyStock: 5, unit: 'Box', size: 'A4', price: 18000, location: '보관창고', vendor: '오피스디포', lastOrderDate: '2026-02-28', notes: '데스크용' },
-  { id: 'ITM-007', name: '리도카인 앰플 (1:100,000)', category: '의약품', currentStock: 400, safetyStock: 100, unit: 'Amp', size: '1.8ml', price: 25000, expirationDate: '2027-11-01', location: '약제실', vendor: '휴온스', lastOrderDate: '2026-03-10', notes: '마약류 자동연계(NIMS) 시스템 확인 요망' },
-];
 
 interface CartItem {
   item: InventoryItem;
@@ -84,6 +76,8 @@ interface CartItem {
 const CATEGORIES = ['전체', '재료', '의약품', '기구', '장비', '비품', '기타용품'];
 
 const SupplyInventory = () => {
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -92,7 +86,21 @@ const SupplyInventory = () => {
   const [isMasterDBModalOpen, setIsMasterDBModalOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  const filteredItems = MOCK_INVENTORY.filter(item => {
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        const res = await axios.get('/api/supply/inventory?hospitalId=WAYN-001');
+        setInventory(res.data);
+      } catch (err) {
+        console.error('Failed to fetch inventory:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInventory();
+  }, []);
+
+  const filteredItems = inventory.filter(item => {
     const matchSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
       item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.id.toLowerCase().includes(searchTerm.toLowerCase());
@@ -201,70 +209,87 @@ const SupplyInventory = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredItems.map((item) => {
-                const isLowStock = item.currentStock < item.safetyStock;
-                let isExpiringSoon = false;
-                if (item.expirationDate) {
-                  const today = new Date('2026-03-12');
-                  const expDate = new Date(item.expirationDate);
-                  const diffDays = Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                  if (diffDays <= 30) isExpiringSoon = true;
-                }
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-gray-500">
+                    <Loader2 className="animate-spin mb-4 mx-auto" size={32} />
+                    <p>재고 데이터를 불러오는 중입니다...</p>
+                  </td>
+                </tr>
+              ) : filteredItems.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-20 text-center text-gray-400">
+                    <Search size={48} className="text-gray-200 mx-auto mb-3" />
+                    <p className="font-medium text-gray-500">'{searchTerm}'에 해당하는 품목이 없거나 등록된 재고가 없습니다.</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredItems.map((item) => {
+                  const safetyStock = item.safetyStock ?? item.minStock ?? 0;
+                  const isLowStock = item.currentStock < safetyStock;
+                  let isExpiringSoon = false;
+                  if (item.expirationDate) {
+                    const today = new Date('2026-03-12');
+                    const expDate = new Date(item.expirationDate);
+                    const diffDays = Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    if (diffDays <= 30) isExpiringSoon = true;
+                  }
 
-                return (
-                  <tr 
-                    key={item.id} 
-                    onClick={() => handleRowClick(item)}
-                    className="hover:bg-green-50/30 transition-colors group cursor-pointer"
-                  >
-                    <td className="py-4 px-6">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-bold text-gray-800 text-base">{item.name}</span>
-                        <span className="text-xs text-gray-400 font-mono">{item.id}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-semibold">{item.category}</span>
-                    </td>
-                    <td className="py-4 px-6 text-center text-sm text-gray-600">{item.size || '-'}</td>
-                    <td className="py-4 px-6 text-right text-sm font-mono font-medium text-blue-700">
-                      {item.price ? `${item.price.toLocaleString()}원` : '-'}
-                    </td>
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-2 text-sm">
-                        <span className={`font-bold text-lg ${isLowStock ? 'text-red-500' : 'text-gray-900'}`}>
-                          {item.currentStock}
-                        </span>
-                        <span className="text-gray-300">/</span>
-                        <span className="text-gray-500 font-medium">{item.safetyStock} {item.unit}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex flex-col items-center gap-1.5">
-                        {item.expirationDate ? (
-                          <div className={`flex items-center gap-1 text-[0.7rem] font-bold ${isExpiringSoon ? 'text-amber-500 bg-amber-50 px-2 py-0.5 rounded' : 'text-gray-500 bg-gray-50 px-2 py-0.5 rounded'}`}>
-                            <Clock size={12} /> {item.expirationDate.substring(2)}까지
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400">-</span>
-                        )}
-                        {isLowStock ? (
-                          <div className="flex items-center gap-1 px-2.5 py-0.5 bg-red-50 text-red-600 rounded text-[0.7rem] font-bold w-full justify-center">
-                            발주 필요
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[0.7rem] font-bold w-full justify-center">
-                            적정 유지
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <OrderQuantityInput onAdd={(qty) => handleAddToCart(item, qty)} />
-                    </td>
-                  </tr>
-                );
-              })}
+                  return (
+                    <tr 
+                      key={item.id} 
+                      onClick={() => handleRowClick(item)}
+                      className="hover:bg-green-50/30 transition-colors group cursor-pointer"
+                    >
+                      <td className="py-4 px-6">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-bold text-gray-800 text-base">{item.name}</span>
+                          <span className="text-xs text-gray-400 font-mono">{item.id}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-semibold">{item.category}</span>
+                      </td>
+                      <td className="py-4 px-6 text-center text-sm text-gray-600">{item.size || '-'}</td>
+                      <td className="py-4 px-6 text-right text-sm font-mono font-medium text-blue-700">
+                        {item.price ? `${item.price.toLocaleString()}원` : '-'}
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-2 text-sm">
+                          <span className={`font-bold text-lg ${isLowStock ? 'text-red-500' : 'text-gray-900'}`}>
+                            {item.currentStock}
+                          </span>
+                          <span className="text-gray-300">/</span>
+                          <span className="text-gray-500 font-medium">{safetyStock} {item.unit}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex flex-col items-center gap-1.5">
+                          {item.expirationDate ? (
+                            <div className={`flex items-center gap-1 text-[0.7rem] font-bold ${isExpiringSoon ? 'text-amber-500 bg-amber-50 px-2 py-0.5 rounded' : 'text-gray-500 bg-gray-50 px-2 py-0.5 rounded'}`}>
+                              <Clock size={12} /> {item.expirationDate.substring(2)}까지
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
+                          {isLowStock ? (
+                            <div className="flex items-center gap-1 px-2.5 py-0.5 bg-red-50 text-red-600 rounded text-[0.7rem] font-bold w-full justify-center">
+                              발주 필요
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[0.7rem] font-bold w-full justify-center">
+                              적정 유지
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <OrderQuantityInput onAdd={(qty) => handleAddToCart(item, qty)} />
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
           {filteredItems.length === 0 && (
@@ -335,13 +360,13 @@ const SupplyInventory = () => {
             <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
               <div>
                 <p className="text-xs font-bold text-gray-500 mb-1">현재 재고</p>
-                <p className={`text-2xl font-black ${selectedItem.currentStock < selectedItem.safetyStock ? 'text-red-500' : 'text-[#16A34A]'}`}>
+                <p className={`text-2xl font-black ${selectedItem.currentStock < (selectedItem.safetyStock ?? selectedItem.minStock ?? 0) ? 'text-red-500' : 'text-[#16A34A]'}`}>
                   {selectedItem.currentStock} <span className="text-sm font-semibold text-gray-500">{selectedItem.unit}</span>
                 </p>
               </div>
               <div>
                 <p className="text-xs font-bold text-gray-500 mb-1">안전 재고 수준</p>
-                <p className="text-lg font-bold text-gray-700">{selectedItem.safetyStock} <span className="text-sm font-medium">{selectedItem.unit}</span></p>
+                <p className="text-lg font-bold text-gray-700">{selectedItem.safetyStock ?? selectedItem.minStock ?? 0} <span className="text-sm font-medium">{selectedItem.unit}</span></p>
               </div>
             </div>
 

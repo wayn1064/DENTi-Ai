@@ -1,20 +1,15 @@
-import { ClipboardCheck, Droplets, User, Calendar, Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { ClipboardCheck, Droplets, User, Calendar, Plus, Loader2, ClipboardX } from 'lucide-react';
 
 interface CleaningLog {
   id: string;
-  zone: '대기실' | '진료실' | '기공실' | '중앙공급실';
+  zone: '대기실' | '진료실' | '기공실' | '중앙공급실' | string;
   date: string;
   checkedBy: string;
-  status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
+  status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING' | string;
   notes: string;
 }
-
-const MOCK_CLEANING_LOGS: CleaningLog[] = [
-  { id: 'CLN-001', zone: '진료실', date: '2026-03-12', checkedBy: '김수진', status: 'COMPLETED', notes: '체어 타구 점검 완료, 수관 소독 진행' },
-  { id: 'CLN-002', zone: '중앙공급실', date: '2026-03-12', checkedBy: '최지민', status: 'IN_PROGRESS', notes: '멸균기 내부 청소 중' },
-  { id: 'CLN-003', zone: '대기실', date: '2026-03-12', checkedBy: '이은지', status: 'PENDING', notes: '' },
-  { id: 'CLN-004', zone: '기공실', date: '2026-03-11', checkedBy: '박기사', status: 'COMPLETED', notes: '환기 시스템 필터 교체 완료' },
-];
 
 const StatusBadge = ({ status }: { status: CleaningLog['status'] }) => {
   switch (status) {
@@ -25,11 +20,32 @@ const StatusBadge = ({ status }: { status: CleaningLog['status'] }) => {
     case 'PENDING':
       return <span className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-500 rounded-md text-xs font-bold w-fit">대기 중</span>;
     default:
-      return null;
+      return <span className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 text-gray-500 rounded-md text-xs font-bold w-fit">{status}</span>;
   }
 };
 
 const SupplyCleaning = () => {
+  const [logs, setLogs] = useState<CleaningLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const res = await axios.get('/api/supply/cleaning?hospitalId=WAYN-001');
+        const dbLogs = res.data.map((log: any) => ({
+          ...log,
+          date: log.date ? new Date(log.date).toLocaleDateString() : '-'
+        }));
+        setLogs(dbLogs);
+      } catch (err) {
+        console.error('Failed to fetch cleaning logs:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLogs();
+  }, []);
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -46,7 +62,7 @@ const SupplyCleaning = () => {
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         {['대기실', '진료실', '기공실', '중앙공급실'].map((zone) => {
-          const log = MOCK_CLEANING_LOGS.find(l => l.zone === zone && l.date === '2026-03-12');
+          const log = logs.find(l => l.zone === zone && l.date === new Date().toLocaleDateString());
           const isCompleted = log?.status === 'COMPLETED';
           
           return (
@@ -77,22 +93,38 @@ const SupplyCleaning = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {MOCK_CLEANING_LOGS.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50/50 transition-colors group cursor-pointer">
-                  <td className="py-4 px-6 text-sm font-bold text-gray-800">{log.date}</td>
-                  <td className="py-4 px-6">
-                    <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold">{log.zone}</span>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-gray-500">
+                    <Loader2 className="animate-spin mb-4 mx-auto" size={32} />
+                    <p>데이터를 불러오는 중입니다...</p>
                   </td>
-                  <td className="py-4 px-6 text-sm text-gray-600 flex items-center gap-2">
-                    <div className="bg-gray-200 p-1.5 rounded-full"><User size={14} className="text-gray-500" /></div>
-                    {log.checkedBy}
-                  </td>
-                  <td className="py-4 px-6">
-                    <StatusBadge status={log.status} />
-                  </td>
-                  <td className="py-4 px-6 text-sm text-gray-500">{log.notes || '-'}</td>
                 </tr>
-              ))}
+              ) : logs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-gray-400">
+                    <ClipboardX size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p>등록된 청소 관리 내역이 없습니다.</p>
+                  </td>
+                </tr>
+              ) : (
+                logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-50/50 transition-colors group cursor-pointer">
+                    <td className="py-4 px-6 text-sm font-bold text-gray-800">{log.date}</td>
+                    <td className="py-4 px-6">
+                      <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold">{log.zone}</span>
+                    </td>
+                    <td className="py-4 px-6 text-sm text-gray-600 flex items-center gap-2">
+                      <div className="bg-gray-200 p-1.5 rounded-full"><User size={14} className="text-gray-500" /></div>
+                      {log.checkedBy}
+                    </td>
+                    <td className="py-4 px-6">
+                      <StatusBadge status={log.status} />
+                    </td>
+                    <td className="py-4 px-6 text-sm text-gray-500">{log.notes || '-'}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
