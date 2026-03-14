@@ -20,6 +20,6 @@ app.get('/api/health', (req, res) => {
 app.use('/api/supply', supplyRoutes);
 app.use('/api/auth', authRoutes);
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
 });
