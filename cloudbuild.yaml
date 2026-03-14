@@ -60,7 +60,7 @@ steps:
       - '--add-cloudsql-instances'
       - '$PROJECT_ID:asia-northeast3:wayn-ai'
       - '--set-env-vars'
-      - 'DATABASE_URL=postgresql://postgres:%21zxasqw12%40@localhost/DENTi-Ai-db?host=/cloudsql/$PROJECT_ID:asia-northeast3:wayn-ai'
+      - 'DATABASE_URL=postgresql://postgres:%21zxasqw12%40@localhost/DENTi-Ai-db?host=/cloudsql/$PROJECT_ID:asia-northeast3:wayn-ai,WAYN_AI_AUTH_URL=https://wayn-ai-backend-585555077661.asia-northeast3.run.app'
     id: 'deploy-backend'
 
 images:

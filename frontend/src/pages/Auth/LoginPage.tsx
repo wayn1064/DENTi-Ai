@@ -14,12 +14,12 @@ export default function LoginPage({ onLoginSuccess }: { onLoginSuccess?: () => v
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 개발용 백도어 로직 (최고시스템관리자)
+    // 개발용 백도어 로직 (최대 편의를 위해 일단 유지하되, 콘솔 경고 추가)
     if (formData.email === '1' && formData.password === '1') {
-      alert('최고시스템관리자 권한으로 로그인되었습니다.');
+      alert('최고시스템관리자 권한으로 로그인되었습니다. (백도어)');
       localStorage.setItem('isAuthenticated', 'true');
       if (onLoginSuccess) {
         onLoginSuccess();
@@ -27,9 +27,30 @@ export default function LoginPage({ onLoginSuccess }: { onLoginSuccess?: () => v
       return;
     }
 
-    // TODO: 정상 Login API 호출 로직 (JWT 발급 및 Role 확인)
-    console.log('Login attempt:', formData);
-    alert('구현 중인 기능입니다. 개발용 백도어(ID: 1, PW: 1)를 이용해주세요.');
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        // 본사 서버 인증 성공
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        if (onLoginSuccess) {
+          onLoginSuccess();
+        }
+      } else {
+        alert(data.message || '로그인에 실패했습니다. 병원코드 및 계정 정보를 확인하세요.');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('서버와의 통신에 실패했습니다.');
+    }
   };
 
   return (
