@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import SignUpModal from './SignUpModal';
 
 export default function LoginPage({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
   const [formData, setFormData] = useState({
@@ -7,8 +6,6 @@ export default function LoginPage({ onLoginSuccess }: { onLoginSuccess?: () => v
     email: '',
     password: ''
   });
-  
-  const [isSignUpModalOpen, setIsSignUpModalOpen] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -108,22 +105,7 @@ export default function LoginPage({ onLoginSuccess }: { onLoginSuccess?: () => v
             로그인
           </button>
         </form>
-
-        <div className="mt-8 text-center">
-          <p className="text-sm text-gray-600">아직 회원이 아니신가요?</p>
-          <button 
-            type="button"
-            className="text-[#1A365D] font-semibold hover:underline mt-1"
-            onClick={() => setIsSignUpModalOpen(true)}
-          >
-            병원 도입 문의 / 회원가입
-          </button>
-        </div>
       </div>
-      
-      {isSignUpModalOpen && (
-        <SignUpModal onClose={() => setIsSignUpModalOpen(false)} />
-      )}
     </div>
   );
 }
